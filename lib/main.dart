@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:firebase_core/firebase_core.dart'; // 필요한 경우 주석 해제
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'features/input/input_screen.dart';
+import 'features/stt/stt_screen.dart';
+import 'features/llm/llm_screen.dart';
 
 void main() async {
   // 1. Flutter 바인딩 초기화
@@ -9,6 +13,9 @@ void main() async {
 
   // 2. Hive(로컬 DB) 초기화
   await Hive.initFlutter();
+
+  // 3. 환경변수(.env) 로드 — API 키 안전하게 보관
+  await dotenv.load(fileName: '.env');
 
   // 3. Firebase 초기화 
   // 윈도우/안드로이드 설정을 마치기 전까지는 앱 크래시 방지를 위해 주석 처리하거나 
@@ -34,7 +41,7 @@ class MyApp extends StatelessWidget {
         // [수정] 최신 Flutter에서는 이미 기본값이므로 삭제하여 에러 해결
         colorSchemeSeed: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: const InputScreen(),
     );
   }
 }
