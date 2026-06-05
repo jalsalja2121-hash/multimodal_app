@@ -14,7 +14,6 @@ class _LlmScreenState extends ConsumerState<LlmScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면 진입 시 자동으로 Gemini 분석 시작
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(geminiAnalysisProvider.notifier).analyze();
     });
@@ -22,43 +21,66 @@ class _LlmScreenState extends ConsumerState<LlmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 창고에서 꺼내기
     final analysisAsync = ref.watch(geminiAnalysisProvider);
     final image = ref.watch(imageProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('분석')),
       body: SafeArea(
-        top: false, // AppBar가 상단 처리
+        top: false,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // 선택된 이미지 미리보기
               if (image != null)
                 Container(
                   height: 200,
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 16),
-                  child: Image.memory(image, fit: BoxFit.cover),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(image, fit: BoxFit.cover),
+                  ),
                 ),
-              // Gemini 응답 영역
               Expanded(
                 child: analysisAsync.when(
-                  data: (text) => text.isEmpty
-                      ? const Center(child: Text('분석 중...'))
-                      : SingleChildScrollView(
-                          child: Text(
-                            text,
-                            style: const TextStyle(fontSize: 16),
+                  data: (sections) {
+                    if (sections.isEmpty) {
+                      return const Center(child: Text('분석 중...'));
+                    }
+
+                    final status = sections
+                        .where((s) => s.title == '현재 상태')
+                        .firstOrNull;
+                    final details = sections
+                        .where((s) => s.title != '현재 상태')
+                        .toList();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (status != null) ...[
+                          _StatusCard(section: status),
+                          const SizedBox(height: 12),
+                        ],
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: details.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) =>
+                                _DetailRow(section: details[index]),
                           ),
                         ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                      ],
+                    );
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(child: Text('오류: $e')),
                 ),
               ),
               const SizedBox(height: 16),
-              // 다시 분석 버튼
               ElevatedButton(
                 onPressed: () =>
                     ref.read(geminiAnalysisProvider.notifier).analyze(),
@@ -66,8 +88,84 @@ class _LlmScreenState extends ConsumerState<LlmScreen> {
               ),
             ],
           ),
-        ), // Padding
-      ), // SafeArea
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.section});
+  final AnalysisSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              section.title,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              section.content,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    height: 1.6,
+                  ),
+              softWrap: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.section});
+  final AnalysisSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(
+                section.title,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                section.content,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
